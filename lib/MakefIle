@@ -1,0 +1,3 @@
+# lib/Makefile
+all : ar rcs orangescrt.a syscall.o mysyscall.o close.o exec.o exit.o fork.o getpid.o misc.o open.o printf.o read.o special.o stat.o string.o syslog.o unlink.o vsprintf.o wait.o write.o
+	
