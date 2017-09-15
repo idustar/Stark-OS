@@ -358,7 +358,7 @@ void shabby_shell(const char * tty_name)
     char arg2[128];
     char buf[1024];
     int j = 0;
-    colorful();
+    turnOn();
     clear();
     //animation();
     welcome();
@@ -463,7 +463,7 @@ void shabby_shell(const char * tty_name)
                         help();
                     }
                     /* create a file */
-                    else if(strcmp(cmd, "newfile") == 0)
+                    else if(strcmp(cmd, "mk") == 0)
                     {
                         createFilepath(arg1);
                         createFile(filepath, arg2, 1);
@@ -477,7 +477,7 @@ void shabby_shell(const char * tty_name)
                         clearArr(filepath, 128);
                     }
                     /* read a file */
-                    else if(strcmp(cmd, "read") == 0)
+                    else if(strcmp(cmd, "vi") == 0)
                     {
                         createFilepath(arg1);
                         readFile(filepath);
@@ -498,11 +498,18 @@ void shabby_shell(const char * tty_name)
                         editCover(filepath, arg2);
                         clearArr(filepath, 128);
                     }
-                    /* delete a file */
-                    else if(strcmp(cmd, "delete") == 0)
+                    /* remove a file */
+                    else if(strcmp(cmd, "rm") == 0)
                     {
                         createFilepath(arg1);
                         deleteFile(filepath);
+                        clearArr(filepath, 128);
+                    }
+                    /* remove a directory */
+                    else if(strcmp(cmd, "rmdir") == 0)
+                    {
+                        createFilepath(arg1);
+                        rmdir(filepath);
                         clearArr(filepath, 128);
                     }
                     /* login */
@@ -532,12 +539,12 @@ void shabby_shell(const char * tty_name)
                         pwd();
                     }
                     /* add user */
-                    else if(strcmp(cmd, "add") == 0)
+                    else if(strcmp(cmd, "adduser") == 0)
                     {
-                        addUser(arg1, arg2, 0);
+                        addUser(arg1, arg2, 0, 1);
                     }
                     /* move user */
-                    else if(strcmp(cmd, "move") == 0)
+                    else if(strcmp(cmd, "rmuser") == 0)
                     {
                         removeUser(arg1, arg2);
                     }
@@ -747,6 +754,7 @@ void addLog(char * filepath)
     files[pos][i] = '\0';
     printf("new file: '%s' has been added into filelogs.\n", files[pos]);
     updateFileLogs();
+    filequeue[pos] = 0;
     char fname[128];
     clearArr(fname, 128);
     char fpath[128];
@@ -764,16 +772,17 @@ void addLog(char * filepath)
     fname[0] = '\0';
     for (i = 0, j = k + 1; j < strlen(filepath); j++, i++)
     {
-        editAppand("user1", fname);
-        editAppand("user1", " ");
         fname[i] = filepath[j];
-        return;
     }
     fname[i + 1] = '\0';
     //
     fpath[0] = '\0';
     if (k <= 0) {
-        printf("%s: name is %s and path is %s.\n", filepath, fname, fpath);
+        printf("%s: name is %s and path is user1.\n", filepath, fname, fpath);
+        editAppand("user1", fname);
+        editAppand("user1", " ");
+        return;
+
     }
     if (filepath[0] == '_')
         i = 1;
@@ -820,8 +829,10 @@ void deleteLog(char * filepath)
         {
             strcpy(files[i], "empty");
             int len = strlen(files[i]);
-            files[i][len] = '0' + i;
-            files[i][len + 1] = '\0';
+            files[i][len] = '0' + i/10;
+            files[i][len + 1] = '0' + i%10;
+            files[i][len + 2] = '\0';
+            printf("try to open file: %s\n", files[i]);
             fd = open(files[i], O_CREAT | O_RDWR);
             close(fd);
             filequeue[i] = 1;
@@ -829,6 +840,7 @@ void deleteLog(char * filepath)
         }
     }
     filecount--;
+    printf("start to update file logs.\n");
     updateFileLogs();
 }
 
@@ -1161,7 +1173,17 @@ void mkdir(char * filepath)
     path[i+1] = '\0';
     createFile(path, buf, 1);
 }
-
+/* Remove Dictionary */
+void rmdir(char * filepath)
+{
+    char path[128];
+    int i = 0;
+    i = strlen(filepath);
+    strcpy(path, filepath);
+    path[i] = '_';
+    path[i+1] = '\0';
+    deleteFile(path);
+}
 
 /* Read File */
 void readFile(char * filepath)
@@ -1249,17 +1271,14 @@ void deleteFile(char * filepath)
 {
     if (vertify() == 0)
         return;
-    if (usercount == 0)
-    {
-        printf("Fail!\n");
-        return;
-    }
+    printf("try to delete '%s'.\n", filepath);
     editCover(filepath, "");
     if(unlink(filepath) != 0)
     {
         printf("Edit fail, please try again!\n");
         return;
     }
+    printf("start to delete %s's log.\n", filepath);
     deleteLog(filepath);
 
 //    char username[128];
@@ -1271,66 +1290,81 @@ void deleteFile(char * filepath)
 //    {
 //        strcpy(username, "user2");
 //    }
+    printf("there's lots of things to do. \n\n\n");
     char path[128];
     strcpy(path, getFilePath(filepath));
 
-    char files[60][128];
     char bufr[1024];
     char filename[128];
     char realname[128];
-    int fd = -1, n = 0, i = 0, count = 0, k = 0;
+    int fd = -1, n = 0, i = 0, count = 0, k = 0, j = 0;
+    printf("path is %s\n", path);
+    if (strcmp(path, "_") == 0)
+        strcpy(path, "user1");
     fd = open(path, O_RDWR);
     n = read(fd, bufr, 1024);
     close(fd);
+    printf("success.\n");
 
-    for (i = strlen(location) + 1; i < strlen(filepath); i++, k++)
-    {
-        realname[k] = filepath[i];
-    }
-    realname[k] = '\0';
-    k = 0;
-    for (i = 0; i < strlen(bufr); i++)
-    {
-        if (bufr[i] != ' ')
-        {
-            filename[k] = bufr[i];
-            k++;
-        }
-        else
-        {
-            filename[k] = '\0';
-            if (strcmp(filename, realname) == 0)
-            {
-                k = 0;
-                continue;
-            }
-            strcpy(files[count], filename);
-            count++;
-            k = 0;
-        }
-    }
 
-    i = 0, k = 0;
-    for (k = 0; k < 2; k++)
-    {
-        printf("%s\n", files[k]);
-    }
+    i = 0;
     editCover(path, "");
-    while (i < count)
+    if (strcmp(path, "user1") == 0) {
+        strcpy(path, "");
+    }
+    int len = strlen(path);
+    for (i = 0; i < 60; i++)
     {
-        if (strlen(files[i]) < 1)
+        if (strlen(files[i]) < 1 || files[i][0] < 31 || files[i][0] > 172)
         {
-            i++;
             continue;
         }
+
         char file[128];
-        int len = strlen(files[i]);
-        strcpy(file, files[i]);
-        file[len] = ' ';
-        file[len + 1] = '\0';
-        editAppand(path, file);
-        i++;
+        clearArr(file, 128);
+        for (j = 0; j < len; j++) {
+            if (path[j] != files[i][j])
+                break;
+            if (j == len - 1) {
+                j = len + 10;
+                break;
+            }
+        }
+        if (len == 0) j = 10;
+        if (j == len + 10)
+        {
+            printf("find files: %s      ", files[i]);
+            if (strcmp(path, files[i]) == 0)
+            {
+                printf("deleted!\n");
+                strcpy(files[i], "");
+            }
+            else
+            {
+                for (j = len, k = 0; files[i][j] != '\0'; j++, k++) {
+                    file[k] = files[i][j];
+                    if (file[k]=='_' && files[i][j+1]>31) {
+                        clearArr(file, 128);
+                        return;
+                    }
+                }
+                if (file[0] == 'e' && file[1] == 'm' && file[2] == 'p') {
+                    clearArr(file, 128);
+                    return;
+                }
+                file[k] = ' ';
+                file[k+1] = '\0';
+                if (strcmp(path, "") == 0)
+                    editAppand("user1", file);
+                else
+                    editAppand(path, file);
+                printf("got %s\n", file);
+                clearArr(file, 128);
+            }
+        }
+
     }
+    printf("rebuild file system successfully!\n");
 }
 
 void cd(char *path) {
@@ -1355,7 +1389,10 @@ void cd(char *path) {
     int n;
     char bufr[1024] = "";
     printf("try to enter %s\n", aim);
-    fd = open(aim, O_RDWR);
+    if (strcmp(aim, "_") != 0)
+        fd = open(aim, O_RDWR);
+    else
+        fd = open("user1", O_RDWR);
     if(fd == -1)
     {
         printf("Fail, please check and try again!!\n");
@@ -1363,7 +1400,7 @@ void cd(char *path) {
     }
     n = read(fd, bufr, 1024);
     bufr[n] = '\0';
-    printf("%s(fd=%d) : %s\n", aim, fd, bufr);
+    printf("%s : %s\n", aim, bufr);
     close(fd);
     aim[strlen(aim)-1] = '\0';
     strcpy(location, aim);
@@ -1399,12 +1436,12 @@ void checkUsername(char * username)
     }
     if (strcmp(username, "newadmin") == 0)
     {
-        addUser("admin", "admin", 1);
+        addUser("admin", "admin", 1, 2);
         login();
         return;
     }
 
-    for (i = 0; i < usercount; i++)
+    for (i = 0; i < 10; i++)
     {
         if (strcmp(username, users[i]) == 0)
         {
@@ -1424,7 +1461,7 @@ void checkPassword(char * password)
     if (strcmp(password, users[userFlag]) == 0)
     {
         currentUser = userFlag;
-        printf("Welcome! %s!\n", users[currentUser]);
+        printf("Welcome! %s!\n", passwords[currentUser]);
         currentState = 0;
     } else {
         printf("Sorry, password is wrong.\n");
@@ -1432,6 +1469,36 @@ void checkPassword(char * password)
     }
     userFlag = -1;
 }
+
+void reversePassword(char * lp, char * np)
+{
+    if (userFlag < 0) return;
+    if (strcmp(lp, users[userFlag]) == 0)
+    {
+        passwords[currentUser] = np;
+        printf("Success! %s!\n", users[currentUser]);
+    } else {
+        printf("Failed, password is wrong.\n");
+    }
+}
+
+void reversePermissions(char * username, char * per)
+{
+    if (permissions[currentUser] < 2)
+    {
+        printf("Only administrator can add new account.\n");
+        return;
+    }
+    for (i = 0; i < 10; i++)
+    {
+        if (strcmp(users[i], username) == 0)
+        {
+            printf("Failed! User exists!\n");
+            return;
+        }
+    }
+}
+
 
 void login()
 {
@@ -1443,7 +1510,7 @@ void login()
 void logout()
 {
     printf("Bye-bye! %s\n", users[currentUser]);
-    strcpy(location, "/");
+    strcpy(location, "");
     currentUser = -1;
     login();
 }
@@ -1475,15 +1542,16 @@ void ls()
 
 
 /* Add User */
-void addUser(char * username, char * password, int flag)
+void addUser(char * username, char * password, int flag, int permission)
 {
-    if (permissions[currentUser] != 2 && flag == 0)
+    if (permissions[currentUser] <= permission && flag == 0)
     {
-        printf("Only administrator can add new account.");
+        printf("Sorry, you cannot offer a higher (or the same) permission to new user than yourself.\n");
+        printf("Your permission: %d\n.", permissions[currentUser]);
         return;
     }
     int i = 0;
-    for (i = 0; i < usercount; i++)
+    for (i = 0; i < 10; i++)
     {
         if (strcmp(users[i], username) == 0)
         {
@@ -1504,48 +1572,54 @@ void addUser(char * username, char * password, int flag)
     {
         strcpy(users[userpoint], username);
         strcpy(passwords[userpoint], password);
+        permissions[userpoint] = permission;
         usercount++;
         updateMyUsers();
         updateMyUsersPassword();
+        updateMyUsersPermissions();
         printf("Success! New user %s has been created.\n", username);
         return;
     }
 
 }
 
-/* Move User */
-void removeUser()
+/* Remove User */
+void removeUser(char * username)
 {
-
-            strcpy(location, users[currentUser]);
-
-            int fd = -1, n = 0, k = 0, count = 0;
-            char bufr[1024], deletefile[128];
-            fd = open("user1", O_RDWR);
-            n = read(fd, bufr, 1024);
-            close(fd);
-            for (k = 0; k < strlen(bufr); k++)
+    int i = 0;
+    userFlag = -1;
+    for (i = 0; i < usercount; i++)
+    {
+        if (strcmp(username, users[i]) == 0)
+        {
+            userFlag = i;
+            if (userFlag == currentUser)
             {
-                if (bufr[k] != ' ')
-                {
-                    deletefile[count] = bufr[k];
-                    count++;
-                }
-                else
-                {
-                    deletefile[count] = '\0';
-                    createFilepath(deletefile);
-                    deleteFile(filepath);
-                    count = 0;
-                }
+                printf("You cannot delete your own account.\n");
+                return;
             }
+            if (permissions[userFlag] >= permissions[currentUser])
+            {
+                printf("You have not enough permission to remove his account.\n");
+                printf("Your permission: %d; %s's permission: %d.\n", permissions[currentUser], username, permissions[userFlag]);
+                return;
+            }
+            strcpy(users[i], "noname");
+            strcpy(passwords[i], "no");
+            permissions[i] = 1;
+            printf("%s is deleted successfully!\n", username);
+            return;
+        }
+    }
+    printf("No such user %s in this system.\n", username);
 }
 
-/* Colorful */
-void colorful()
+/* Turn on Animation */
+void turnOn()
 {
     int j = 0;
     for (j = 0; j < 3200; j++){disp_color_str("M", BLACK);}
+    for (j = 0; j < 2; j++)
     for (j = 0; j < 2; j++)
         disp_color_str("MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM", WHITE);
 
