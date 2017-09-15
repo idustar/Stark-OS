@@ -25,16 +25,20 @@
  * jmp from kernel.asm::_start.
  *
  *****************************************************************************/
-char location[128] = "/";
+char location[128] = "";
 char filepath[128] = "";
-char users[2][128] = {"empty", "empty"};
-char passwords[10][128];
-char files[20][128];
-char userfiles[20][128];
-int filequeue[50];
+char users[10][128] = {"noname","noname","noname","noname","noname","noname","noname","noname","noname","noname"};
+char passwords[10][128] = {"no","no","no","no","no","no","no","no","no","no"};
+int permissions[10] = {2,1,1,1,1,1,1,1,1,1};
+char files[60][128];
+char userfiles[60][128];
+int filequeue[200];
 int filecount = 0;
 int usercount = 0;
 int leiflag = 0;
+int currentUser = -1;
+int userFlag = -1;
+int currentState = 0;   // 0 = normal; 1 = require username; 2 = require password; 3 = edit files
 
 PUBLIC int kernel_main()
 {
@@ -305,7 +309,7 @@ void TestB()
 }
 
 /*======================================================================*
- TestB
+ TestC
  *======================================================================*/
 void TestC()
 {
@@ -358,9 +362,10 @@ void shabby_shell(const char * tty_name)
     clear();
     //animation();
     welcome();
-    printf("press any key to start:\n");
-    int r = read(0, rdbuf, 70);
+//    printf("press any key to start:\n");
+//    int r = read(0, rdbuf, 70);
     initFs();
+    login();
 
     while (1) {
 
@@ -370,7 +375,14 @@ void shabby_shell(const char * tty_name)
         clearArr(arg2, 128);
         clearArr(buf, 1024);
 
-        printf("%s $ ", location);
+        if (currentState == 0) {
+            if (currentUser >= 0) {
+                printf ("%s@", users[currentUser]);
+            }
+            printf("%s $ ", location);
+        }
+        else
+            printf(">> ");
         int r = read(0, rdbuf, 70);
         rdbuf[r] = 0;
 
@@ -395,144 +407,162 @@ void shabby_shell(const char * tty_name)
             p++;
         } while(ch);
         argv[argc] = 0;
-
-        int fd = open(argv[0], O_RDWR);
-        if (fd == -1) {
-            if (rdbuf[0]) {
-                int i = 0, j = 0;
-                /* get command */
-                while (rdbuf[i] != ' ' && rdbuf[i] != 0)
-                {
-                    cmd[i] = rdbuf[i];
+        if (currentState == 0) {
+            int fd = open(argv[0], O_RDWR);
+            if (fd == -1) {
+                if (rdbuf[0]) {
+                    int i = 0, j = 0;
+                    /* get command */
+                    while (rdbuf[i] != ' ' && rdbuf[i] != 0)
+                    {
+                        cmd[i] = rdbuf[i];
+                        i++;
+                    }
                     i++;
-                }
-                i++;
-                /* get arg1 */
-                while(rdbuf[i] != ' ' && rdbuf[i] != 0)
-                {
-                    arg1[j] = rdbuf[i];
+                    /* get arg1 */
+                    while(rdbuf[i] != ' ' && rdbuf[i] != 0)
+                    {
+                        arg1[j] = rdbuf[i];
+                        i++;
+                        j++;
+                    }
                     i++;
-                    j++;
-                }
-                i++;
-                j = 0;
-                /* get arg2 */
-                while(rdbuf[i] != ' ' && rdbuf[i] != 0)
-                {
-                    arg2[j] = rdbuf[i];
-                    i++;
-                    j++;
-                }
-                /* play video */
-                if(strcmp(cmd, "animation") == 0)
-                {
-                    animation();
-                    welcome();
-                }
-                /* welcome */
-                else if(strcmp(cmd, "welcome") == 0)
-                {
-                    welcome();
-                }
-                /* clear screen */
-                else if(strcmp(cmd, "clear") == 0)
-                {
-                    clear();
-                    welcome();
-                }
-                /* show process */
-                else if(strcmp(cmd, "proc") == 0)
-                {
-                    showProcess();
-                }
-                /* show help message */
-                else if(strcmp(cmd, "help") == 0)
-                {
-                    help();
-                }
-                /* create a file */
-                else if(strcmp(cmd, "newfile") == 0)
-                {
-                    createFilepath(arg1);
-                    createFile(filepath, arg2, 1);
-                    clearArr(filepath, 128);
-                }
-                /* read a file */
-                else if(strcmp(cmd, "read") == 0)
-                {
-                    createFilepath(arg1);
-                    readFile(filepath);
-                    clearArr(filepath, 128);
-                    //readFile(arg1);
-                }
-                /* edit a file appand */
-                else if(strcmp(cmd, "edit+") == 0)
-                {
-                    createFilepath(arg1);
-                    editAppand(filepath, arg2);
-                    clearArr(filepath, 128);
-                }
-                /* edit a file cover */
-                else if(strcmp(cmd, "edit") == 0)
-                {
-                    createFilepath(arg1);
-                    editCover(filepath, arg2);
-                    clearArr(filepath, 128);
-                }
-                /* delete a file */
-                else if(strcmp(cmd, "delete") == 0)
-                {
-                    createFilepath(arg1);
-                    deleteFile(filepath);
-                    clearArr(filepath, 128);
-                }
-                /* login */
-                else if(strcmp(cmd, "login") == 0)
-                {
-                    login(arg1, arg2);
-                }
-                /* login out */
-                else if(strcmp(cmd, "loginout") == 0)
-                {
-                    loginOut();
-                }
-                /* ls */
-                else if(strcmp(cmd, "ls") == 0)
-                {
-                    ls();
-                }
-                /* pwd */
-                else if(strcmp(cmd, "user") == 0)
-                {
-                    pwd();
-                }
-                /* add user */
-                else if(strcmp(cmd, "add") == 0)
-                {
-                    addUser(arg1, arg2);
-                }
-                /* move user */
-                else if(strcmp(cmd, "move") == 0)
-                {
-                    moveUser(arg1, arg2);
-                }
-                /* message */
-                else if(strcmp(cmd, "duihua") == 0)
-                {
-                    TESTA(arg1);
+                    j = 0;
+                    /* get arg2 */
+                    while(rdbuf[i] != ' ' && rdbuf[i] != 0)
+                    {
+                        arg2[j] = rdbuf[i];
+                        i++;
+                        j++;
+                    }
+                    /* play video */
+                    if(strcmp(cmd, "animation") == 0)
+                    {
+                        animation();
+                        welcome();
+                    }
+                    /* welcome */
+                    else if(strcmp(cmd, "welcome") == 0)
+                    {
+                        welcome();
+                    }
+                    /* clear screen */
+                    else if(strcmp(cmd, "clear") == 0)
+                    {
+                        clear();
+                        welcome();
+                    }
+                    /* show process */
+                    else if(strcmp(cmd, "proc") == 0)
+                    {
+                        showProcess();
+                    }
+                    /* show help message */
+                    else if(strcmp(cmd, "help") == 0)
+                    {
+                        help();
+                    }
+                    /* create a file */
+                    else if(strcmp(cmd, "newfile") == 0)
+                    {
+                        createFilepath(arg1);
+                        createFile(filepath, arg2, 1);
+                        clearArr(filepath, 128);
+                    }
+                    /* make directory */
+                    else if(strcmp(cmd, "mkdir") == 0)
+                    {
+                        createFilepath(arg1);
+                        mkdir(filepath);
+                        clearArr(filepath, 128);
+                    }
+                    /* read a file */
+                    else if(strcmp(cmd, "read") == 0)
+                    {
+                        createFilepath(arg1);
+                        readFile(filepath);
+                        clearArr(filepath, 128);
+                        //readFile(arg1);
+                    }
+                    /* edit a file appand */
+                    else if(strcmp(cmd, "edit+") == 0)
+                    {
+                        createFilepath(arg1);
+                        editAppand(filepath, arg2);
+                        clearArr(filepath, 128);
+                    }
+                    /* edit a file cover */
+                    else if(strcmp(cmd, "edit") == 0)
+                    {
+                        createFilepath(arg1);
+                        editCover(filepath, arg2);
+                        clearArr(filepath, 128);
+                    }
+                    /* delete a file */
+                    else if(strcmp(cmd, "delete") == 0)
+                    {
+                        createFilepath(arg1);
+                        deleteFile(filepath);
+                        clearArr(filepath, 128);
+                    }
+                    /* login */
+                    else if(strcmp(cmd, "login") == 0)
+                    {
+                        login();
+                    }
+                    /* login out */
+                    else if(strcmp(cmd, "logout") == 0)
+                    {
+                        logout();
+                    }
+                    /* ls */
+                    else if(strcmp(cmd, "ls") == 0)
+                    {
+                        ls();
+                    }
+                    /* cd */
+                    else if(strcmp(cmd, "cd") == 0)
+                    {
+                        cd(arg1);
+                        clearArr(filepath, 128);
+                    }
+                    /* pwd */
+                    else if(strcmp(cmd, "user") == 0)
+                    {
+                        pwd();
+                    }
+                    /* add user */
+                    else if(strcmp(cmd, "add") == 0)
+                    {
+                        addUser(arg1, arg2, 0);
+                    }
+                    /* move user */
+                    else if(strcmp(cmd, "move") == 0)
+                    {
+                        removeUser(arg1, arg2);
+                    }
+                    /* message */
+                    else if(strcmp(cmd, "duihua") == 0)
+                    {
+                        TESTA(arg1);
+                    }
                 }
             }
-        }
-        else {
-            close(fd);
-            int pid = fork();
-            if (pid != 0) { /* parent */
-                int s;
-                wait(&s);
+            else {
+                close(fd);
+                int pid = fork();
+                if (pid != 0) { /* parent */
+                    int s;
+                    wait(&s);
+                }
+                else {	/* child */
+                    execv(argv[0], argv);
+                }
             }
-            else {	/* child */
-                execv(argv[0], argv);
-            }
+        } else if (currentState == 1) {
+            checkUsername(argv[0]);
+        } else if (currentState == 2) {
+            checkPassword(argv[0]);
         }
     }
 
@@ -550,17 +580,96 @@ void clearArr(char *arr, int length)
         arr[i] = 0;
 }
 
-/* Create Filepath */
+/* Match file path and name */
+char * getFilePath(char * filename)
+{
+    int j = 0, k = -1, i = 0;
+    char filepath[128];
+    clearArr(filepath, 128);
+    for (j = strlen(filename) - 2; j >= 0 ; j--)
+    {
+        if (filename[j] == '_') {
+            k = j;
+            break;
+        }
+    }
+    filepath[0] = '\0';
+    if (k <= 0)
+        return "_";
+    if (filename[0] == '_')
+        i = 1;
+    for (j = 0; j < k; j++, i++)
+    {
+        filepath[j] = filename[i];
+    }
+    if (filepath[k-1] == '_') filepath[k-1] = '\0';
+    filepath[k] = '_';
+    filepath[k+1] = '\0';
+    return filepath;
+}
+
+char * getFileName(char * filename)
+{
+    int j = 0, k = -1, i = 0;
+    char truename[128];
+    clearArr(truename, 128);
+    for (j = strlen(filename) - 2; j >= 0 ; j--)
+    {
+        if (filename[j] == '_') {
+            k = j;
+            break;
+        }
+    }
+    truename[0] = '\0';
+    if (filename[k + 1] == '_')
+    {
+        k = k + 1;
+    }
+    for (i = 0, j = k + 1; j < strlen(filename); j++, i++)
+    {
+        truename[i] = filename[j];
+    }
+    truename[i + 1] = '\0';
+    return truename;
+}
+char * getTrueName(char * name)
+{
+    int j = 0, k = -1, i = 0;
+    char tn[128];
+    clearArr(tn, 128);
+    for (j = strlen(name) - 2; j >= 0 ; j--)
+    {
+        if (name[j] == '_') {
+            k = j;
+            break;
+        }
+    }
+    tn[0] = '\0';
+    if (name[k + 1] == '_')
+    {
+        k = k + 1;
+    }
+    for (i = 0, j = k + 1; j < strlen(name); j++, i++)
+    {
+        tn[i] = name[j];
+    }
+    tn[i + 1] = '\0';
+    printf("gettruename:%s\n", tn);
+    return tn;
+}
+
+/* Combine File Path And File Name */
 void createFilepath(char * filename)
 {
     int k = 0, j = 0;
-
     for (k = 0; k < strlen(location); k++)
     {
         filepath[k] = location[k];
     }
-    filepath[k] = '_';
-    k++;
+    if (k != 0) {
+        filepath[k] = '_';
+        k++;
+    }
     for(j = 0; j < strlen(filename); j++, k++)
     {
         filepath[k] = filename[j];
@@ -568,7 +677,7 @@ void createFilepath(char * filename)
     filepath[k] = '\0';
 }
 
-/* Update FileLogs */
+/* Update File Logs */
 void updateFileLogs()
 {
     int i = 0, count = 0;
@@ -597,23 +706,9 @@ void updateMyUsers()
 {
     int i = 0, count = 0;
     editCover("myUsers", "");
-    if (strcmp(users[0], "empty") != 0)
-    {
-        editAppand("myUsers", users[0]);
+    for (i = 0; i < usercount; i++) {
+        editAppand("myUsers", users[i]);
         editAppand("myUsers", " ");
-    }
-    else
-    {
-        editAppand("myUsers", "empty ");
-    }
-    if (strcmp(users[1], "empty") != 0)
-    {
-        editAppand("myUsers", users[1]);
-        editAppand("myUsers", " ");
-    }
-    else
-    {
-        editAppand("myUsers", "empty ");
     }
 }
 
@@ -622,65 +717,97 @@ void updateMyUsersPassword()
 {
     int i = 0, count = 0;
     editCover("myUsersPassword", "");
-    if (strcmp(passwords[0], "") != 0)
-    {
-        editAppand("myUsersPassword", passwords[0]);
+    for (i = 0; i < usercount; i++) {
+        editAppand("myUsersPassword", passwords[i]);
         editAppand("myUsersPassword", " ");
-    }
-    else
-    {
-        editAppand("myUsersPassword", "empty ");
-    }
-    if (strcmp(passwords[1], "") != 0)
-    {
-        editAppand("myUsersPassword", passwords[1]);
-        editAppand("myUsersPassword", " ");
-    }
-    else
-    {
-        editAppand("myUsersPassword", "empty ");
     }
 }
 
-/* Add FIle Log */
+/* Update myUsersPermissions */
+void updateMyUsersPermissions()
+{
+    int i = 0, count = 0;
+    editCover("myUsersPermissions", "");
+    for (i = 0; i < usercount; i++) {
+        editAppand("myUsersPermissions", permissions[i]);
+    }
+}
+
+
+/* Add File Log */
 void addLog(char * filepath)
 {
     int pos = -1, i = 0;
     pos = getPos();
     filecount++;
-    strcpy(files[pos], filepath);
+    while (filepath[i] && filepath[i] >= '\31') {
+        files[pos][i] = filepath[i];
+        i++;
+    }
+    files[pos][i] = '\0';
+    printf("new file: '%s' has been added into filelogs.\n", files[pos]);
     updateFileLogs();
-    filequeue[pos] = 0;
-    if (strcmp("/", location) != 0)
+    char fname[128];
+    clearArr(fname, 128);
+    char fpath[128];
+    clearArr(fpath, 128);
+    //
+    i = 0;
+    int j = 0, k = -1;
+    for (j = strlen(filepath) - 2; j >= 0 ; j--)
     {
-        int fd = -1, k = 0, j = 0;
-        char filename[128];
-        while (k < strlen(filepath))
-        {
-            if (filepath[k] != '_')
-                k++;
-            else
-                break;
-        }
-        k++;
-        while (k < strlen(filepath))
-        {
-            filename[j] = filepath[k];
-            k++;
-            j++;
-        }
-        filename[j] = '\0';
-        if (strcmp(location, users[0]) == 0)
-        {
-            editAppand("user1", filename);
-            editAppand("user1", " ");
-        }
-        else if(strcmp(location, users[1]) == 0)
-        {
-            editAppand("user2", filename);
-            editAppand("user2", " ");
+        if (filepath[j] == '_') {
+            k = j;
+            break;
         }
     }
+    fname[0] = '\0';
+    for (i = 0, j = k + 1; j < strlen(filepath); j++, i++)
+    {
+        editAppand("user1", fname);
+        editAppand("user1", " ");
+        fname[i] = filepath[j];
+        return;
+    }
+    fname[i + 1] = '\0';
+    //
+    fpath[0] = '\0';
+    if (k <= 0) {
+        printf("%s: name is %s and path is %s.\n", filepath, fname, fpath);
+    }
+    if (filepath[0] == '_')
+        i = 1;
+    else
+        i = 0;
+    for (j = 0; j < k; j++, i++)
+    {
+        fpath[j] = filepath[i];
+    }
+    if (fpath[k-1] == '_') filepath[k-1] = '\0';
+    fpath[k] = '_';
+    fpath[k+1] = '\0';
+
+
+    printf("%s: name is %s and path is %s.\n", filepath, fname, fpath);
+    if (strcmp("_", fpath) != 0) {
+        editAppand(fpath, fname);
+        editAppand(fpath, " ");
+    } else {
+        editAppand("user1", fname);
+        editAppand("user1", " ");
+    }
+
+//        editAppand("user1", " ");
+//        if (strcmp(location, users[0]) == 0)
+//        {
+//            editAppand("user1", filename);
+//            editAppand("user1", " ");
+//        }
+//        else if(strcmp(location, users[1]) == 0)
+//        {
+//            editAppand("user2", filename);
+//            editAppand("user2", " ");
+//        }
 }
 
 /* Delete File Log */
@@ -738,17 +865,26 @@ void initFs()
 
     for (i = 0; i < 500; i++)
         filequeue[i] = 1;
-
+    printf("Start initfs\n");
     fd = open("myUsers", O_CREAT | O_RDWR);
     close(fd);
+    printf("Init usernames.\n");
     fd = open("myUsersPassword", O_CREAT | O_RDWR);
     close(fd);
+    printf("Init passwords.\n");
+    fd = open("myUsersPermissions", O_CREAT | O_RDWR);
+    close(fd);
+    printf("Init permissions.\n");
     fd = open("fileLogs", O_CREAT | O_RDWR);
     close(fd);
+    printf("Init filelogs.\n");
     fd = open("user1", O_CREAT | O_RDWR);
     close(fd);
-    fd = open("user2", O_CREAT | O_RDWR);
-    close(fd);
+    printf("Init user1.\n");
+//    fd = open("user1", O_CREAT | O_RDWR);
+//    close(fd);
+//    fd = open("user2", O_CREAT | O_RDWR);
+//    close(fd);
     /* init users */
     fd = open("myUsers", O_RDWR);
     n = read(fd, bufr, 1024);
@@ -768,7 +904,7 @@ void initFs()
                 if (bufr[i] == '\0')
                 {
                     users[count][k] = '\0';
-                    if (strcmp(users[count], "empty") != 0)
+                    if (strcmp(users[count], "noname") != 0)
                         usercount++;
                     count++;
                     break;
@@ -780,13 +916,14 @@ void initFs()
             }
             i--;
             users[count][k] = '\0';
-            if (strcmp(users[count], "empty") != 0)
+            if (strcmp(users[count], "noname") != 0)
                 usercount++;
             k = 0;
             count++;
         }
     }
     close(fd);
+    printf("Init usernames.\n");
     count = 0;
     k = 0;
 
@@ -820,10 +957,29 @@ void initFs()
         }
     }
     close(fd);
+    printf("Init passwords.\n");
     count = 0;
     k = 0;
 
+    /* init permissions */
+    fd = open("myUsersPermissions", O_RDWR);
+    n = read(fd, bufp, 1024);
+    for (i = 0; i < strlen(bufp); i++)
+    {
+        if (bufp[i] != ' ')
+        {
+            permissions[k] = bufp[i] - '1' + 1;
+            k++;
+        }
+    }
+    close(fd);
+    printf("Init permissions.\n");
+    count = 0;
+    k = 0;
+
+
     /* init files */
+
     fd = open("fileLogs", O_RDWR);
     n = read(fd, buff, 1024);
     ;	for (i = 0; i <= strlen(buff); i++)
@@ -860,12 +1016,17 @@ void initFs()
     int empty = 0;
     for (i = 0; i < count; i++)
     {
-        char flag[7];
+        char flag[8];
         strcpy(flag, "empty");
-        flag[5] = '0' + i;
-        flag[6] = '\0';
-        fd = open(files[i], O_CREAT | O_RDWR);
-        close(fd);
+        flag[5] = '0' + i/10;
+        flag[6] = '0' + i%10;
+        flag[7] = '\0';
+        printf("Init files: %s    ", files[i]);
+        if (files[i][0] != '\1') {
+            fd = open(files[i], O_CREAT | O_RDWR);
+            close(fd);
+            printf("success.\n");
+        }
 
         if (strcmp(files[i], flag) != 0)
             filequeue[i] = 0;
@@ -873,6 +1034,8 @@ void initFs()
             empty++;
     }
     filecount = count - empty;
+
+    printf("Finish Initing files.\n");
 }
 
 
@@ -896,8 +1059,8 @@ PUBLIC void welcome()
 PUBLIC void clear()
 {
     int i = 0;
-    for (i = 0; i < 20; i++)
-        printf("\n");
+	for (i = 0; i < 20; i++)
+		printf("\n");
 }
 
 /* Show Process */
@@ -952,36 +1115,51 @@ void createFile(char * filepath, char * buf, int flag)
     int fd = -1, i = 0, pos;
 
     pos = getPos();
-    char f[7];
+    char f[8];
     strcpy(f, "empty");
-    f[5] = '0' + pos;
-    f[6] = '\0';
+    f[5] = '0' + pos/10;
+    f[6] = '0' + pos%10;
+    f[7] = '\0';
     if (strcmp(files[pos], f) == 0 && flag == 1)
     {
         unlink(files[pos]);
     }
-
+    printf("try to open %s\n", filepath);
     fd = open(filepath, O_CREAT | O_RDWR);
     printf("file name: %s content: %s\n", filepath, buf);
     if(fd == -1)
     {
-        printf("Fail, please check and try again!!\n");
+        printf("Creating Failed, please check and try again!!\n");
         return;
     }
     if(fd == -2)
     {
-        printf("Fail, file exsists!!\n");
+        printf("Failed, file exsists!!\n");
         return;
     }
     printf("%s\n", buf);
 
     write(fd, buf, strlen(buf));
     close(fd);
-
+    printf("now add log.\n");
     /* add log */
     if (flag == 1)
         addLog(filepath);
 
+}
+
+/* Make Dictionary */
+void mkdir(char * filepath)
+{
+    char buf[128];
+    char path[128];
+    buf[0] = '\0';
+    int i = 0;
+    i = strlen(filepath);
+    strcpy(path, filepath);
+    path[i] = '_';
+    path[i+1] = '\0';
+    createFile(path, buf, 1);
 }
 
 
@@ -994,6 +1172,7 @@ void readFile(char * filepath)
     int fd = -1;
     int n;
     char bufr[1024] = "";
+    printf("try to read %s\n", filepath);
     fd = open(filepath, O_RDWR);
     if(fd == -1)
     {
@@ -1083,22 +1262,24 @@ void deleteFile(char * filepath)
     }
     deleteLog(filepath);
 
-    char username[128];
-    if (strcmp(location, users[0]) == 0)
-    {
-        strcpy(username, "user1");
-    }
-    if (strcmp(location, users[1]) == 0)
-    {
-        strcpy(username, "user2");
-    }
+//    char username[128];
+//    if (strcmp(location, users[0]) == 0)
+//    {
+//        strcpy(username, "user1");
+//    }
+//    if (strcmp(location, users[1]) == 0)
+//    {
+//        strcpy(username, "user2");
+//    }
+    char path[128];
+    strcpy(path, getFilePath(filepath));
 
-    char userfiles[20][128];
+    char files[60][128];
     char bufr[1024];
     char filename[128];
     char realname[128];
     int fd = -1, n = 0, i = 0, count = 0, k = 0;
-    fd = open(username, O_RDWR);
+    fd = open(path, O_RDWR);
     n = read(fd, bufr, 1024);
     close(fd);
 
@@ -1123,7 +1304,7 @@ void deleteFile(char * filepath)
                 k = 0;
                 continue;
             }
-            strcpy(userfiles[count], filename);
+            strcpy(files[count], filename);
             count++;
             k = 0;
         }
@@ -1132,150 +1313,215 @@ void deleteFile(char * filepath)
     i = 0, k = 0;
     for (k = 0; k < 2; k++)
     {
-        printf("%s\n", userfiles[k]);
+        printf("%s\n", files[k]);
     }
-    editCover(username, "");
+    editCover(path, "");
     while (i < count)
     {
-        if (strlen(userfiles[i]) < 1)
+        if (strlen(files[i]) < 1)
         {
             i++;
             continue;
         }
-        char user[128];
-        int len = strlen(userfiles[i]);
-        strcpy(user, userfiles[i]);
-        user[len] = ' ';
-        user[len + 1] = '\0';
-        editAppand(username, user);
+        char file[128];
+        int len = strlen(files[i]);
+        strcpy(file, files[i]);
+        file[len] = ' ';
+        file[len + 1] = '\0';
+        editAppand(path, file);
         i++;
     }
 }
 
+void cd(char *path) {
+    char aim[128];
+    if (strcmp("..", path) == 0) {
+        if (strcmp("", location) == 0) {
+            printf("Deny, this is a root directory.\n");
+            return;
+        }
+        strcpy(aim, getFilePath(path));
+    } else {
+        createFilepath(path);
+        strcpy(aim, filepath);
+    }
+    int len = 0;
+    len = strlen(aim);
+    if (aim[len-1] != '_') {
+        aim[len] = '_';
+        aim[len+1] = '\0';
+    }
+    int fd = -1;
+    int n;
+    char bufr[1024] = "";
+    printf("try to enter %s\n", aim);
+    fd = open(aim, O_RDWR);
+    if(fd == -1)
+    {
+        printf("Fail, please check and try again!!\n");
+        return;
+    }
+    n = read(fd, bufr, 1024);
+    bufr[n] = '\0';
+    printf("%s(fd=%d) : %s\n", aim, fd, bufr);
+    close(fd);
+    aim[strlen(aim)-1] = '\0';
+    strcpy(location, aim);
+}
+
+/* Remove Dictionary */
+void removedir(char * filepath)
+{
+    char buf[128];
+    char path[128];
+    buf[0] = '\0';
+    int i = 0;
+    i = strlen(filepath);
+    strcpy(path, filepath);
+    path[i] = '_';
+    path[i+1] = '\0';
+    deleteFile(path);
+}
+
 /* Login */
-void login(char * username, char * password)
+
+void checkUsername(char * username)
 {
     int i = 0;
-    for (i = 0; i < usercount; i++)
+    if (strcmp(username, "listall") == 0)
     {
-        if (strcmp(username, users[i]) == 0 && strcmp(password, passwords[i]) == 0)
+        for (i = 0; i < usercount; i++)
         {
-            strcpy(location, users[i]);
-            printf("Welcome! %s!\n", users[i]);
+            printf("User %d: %s %s\n", i, users[i], passwords[i]);
+            login();
             return;
         }
     }
-    printf("Sorry! No such user!\n");
+    if (strcmp(username, "newadmin") == 0)
+    {
+        addUser("admin", "admin", 1);
+        login();
+        return;
+    }
+
+    for (i = 0; i < usercount; i++)
+    {
+        if (strcmp(username, users[i]) == 0)
+        {
+            userFlag = i;
+            printf("Please input your password: \n");
+            currentState = 2;
+            return;
+        }
+    }
+    printf("Um... This account is not exist. Please add a new account with your administrator account.\n");
+    login();
 }
 
-/* Login Out */
-void loginOut()
+void checkPassword(char * password)
 {
-    printf("Good bye! %s\n", location);
+    if (userFlag < 0) return;
+    if (strcmp(password, users[userFlag]) == 0)
+    {
+        currentUser = userFlag;
+        printf("Welcome! %s!\n", users[currentUser]);
+        currentState = 0;
+    } else {
+        printf("Sorry, password is wrong.\n");
+        login();
+    }
+    userFlag = -1;
+}
+
+void login()
+{
+    printf("Please input your username:\n");
+    currentState = 1;
+}
+
+/* Logout */
+void logout()
+{
+    printf("Bye-bye! %s\n", users[currentUser]);
     strcpy(location, "/");
+    currentUser = -1;
+    login();
 }
 
 /* Ls */
 void ls()
 {
-    int fd = -1, n;
+    int fd = -1, n, i = 0, len = 0;
     char bufr[1024];
-    if (strcmp(location, users[0]) == 0)
-    {
-        fd = open("user1", O_RDWR);
-        if (fd == -1)
-        {
-            printf("empty\n");
-        }
-        n = read(fd, bufr, 1024);
-        printf("%s\n", bufr);
-        close(fd);
-    }
-    else if(strcmp(location, users[1]) == 0)
-    {
-        fd = open("user2", O_RDWR);
-        if (fd == -1)
-        {
-            printf("empty\n");
-        }
-        n = read(fd, bufr, 1024);
-        printf("%s\n", bufr);
-        close(fd);
-    }
+    char path[128];
+    len = strlen(location);
+    strcpy(path, location);
+    path[len] = '_';
+    path[len + 1] = '\0';
+    printf("list %s:", path);
+    if (strcmp(path, "_") != 0)
+        fd = open(path, O_RDWR);
     else
-        printf("Permission deny!\n");
+        fd = open("user1", O_RDWR);
+    if (fd == -1)
+    {
+        printf("It is empty.\n");
+        return;
+    }
+    n = read(fd, bufr, 1024);
+    printf("%s\n", bufr);
+    close(fd);
 }
 
 
 /* Add User */
-void addUser(char * username, char * password)
+void addUser(char * username, char * password, int flag)
 {
-    printf("Please input admin password:");
-    char buf[128];
-    int r = read(0, buf, 128);
+    if (permissions[currentUser] != 2 && flag == 0)
+    {
+        printf("Only administrator can add new account.");
+        return;
+    }
     int i = 0;
-    strcpy(location, "admin");
-    //printf("%s %s\n", users[0], users[1]);
-    for (i = 0; i < 2; i++)
+    for (i = 0; i < usercount; i++)
     {
         if (strcmp(users[i], username) == 0)
         {
-            printf("User exists!\n");
+            printf("Failed! User exists!\n");
             return;
         }
     }
-    if (usercount == 2)
+    if (usercount == 9)
     {
-        printf("No more users\n");
-        loginOut();
+        printf("Cannot add more users. Please delete some.\n");
         return;
     }
-    if (strcmp(users[0], "empty") == 0)
+    int userpoint = 0;
+    while (strcmp(users[userpoint], "noname") != 0) {
+        userpoint++;
+    }
+    if (strcmp(users[userpoint], "noname") == 0)
     {
-        strcpy(users[0], username);
-        strcpy(passwords[0], password);
+        strcpy(users[userpoint], username);
+        strcpy(passwords[userpoint], password);
         usercount++;
         updateMyUsers();
         updateMyUsersPassword();
-        loginOut();
-        return;
-    }
-    if (strcmp(users[1], "empty") == 0)
-    {
-        strcpy(users[1], username);
-        strcpy(passwords[1], password);
-        usercount++;
-        updateMyUsers();
-        updateMyUsersPassword();
-        loginOut();
+        printf("Success! New user %s has been created.\n", username);
         return;
     }
 
 }
 
 /* Move User */
-void moveUser(char * username, char * password)
+void removeUser()
 {
-    printf("Please input admin password:");
-    char buf[128];
-    int r = read(0, buf, 128);
-    int i = 0;
-    for (i = 0; i < 2; i++)
-    {
-        if (strcmp(username, users[i]) == 0 && strcmp(password, passwords[i]) == 0)
-        {
-            strcpy(location, username);
+
+            strcpy(location, users[currentUser]);
 
             int fd = -1, n = 0, k = 0, count = 0;
             char bufr[1024], deletefile[128];
-            if (i == 0)
-            {
-                fd = open("user1", O_RDWR);
-            }
-            if (i == 1)
-            {
-                fd = open("user2", O_RDWR);
-            }
+            fd = open("user1", O_RDWR);
             n = read(fd, bufr, 1024);
             close(fd);
             for (k = 0; k < strlen(bufr); k++)
@@ -1293,18 +1539,6 @@ void moveUser(char * username, char * password)
                     count = 0;
                 }
             }
-
-            printf("Delete %s!\n", users[i]);
-            strcpy(users[i], "empty");
-            strcpy(passwords[i], "");
-            updateMyUsers();
-            updateMyUsersPassword();
-            usercount--;
-            strcpy(location, "/");
-            return;
-        }
-    }
-    printf("Sorry! No such user!\n");
 }
 
 /* Colorful */
@@ -1548,13 +1782,6 @@ void colorful()
     disp_color_str("MMMMMM", BLUE);
     disp_color_str("KK", WHITE);
     disp_color_str("M", BLUE);
-
-
-
-
-
-
-
 
     for (j = 0; j < 2; j++)
         disp_color_str("MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM", WHITE);

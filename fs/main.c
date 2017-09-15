@@ -182,7 +182,7 @@ PRIVATE void init_fs()
  *          - Create the inodes of the files
  *          - Create `/', the root directory
  *****************************************************************************/
-PRIVATE void mkfs()
+PUBLIC void mkfs()
 {
 	MESSAGE driver_msg;
 	int i, j;
