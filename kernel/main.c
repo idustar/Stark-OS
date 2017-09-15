@@ -1101,13 +1101,11 @@ void showProcess()
 void help()
 {
     printf("================================================================================\n");
-    printf("        command            |                      function                      \n");
-    printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+    printf("    <<  command  >>        |                <<    function     >>   \n");
     printf("        clear              |           Clear the screen.\n");
     printf("        proc               |           List all process.\n");
     printf("        help               |           Guidance of the system.\n");
-    printf("        cd [subdir]        |           Change location to a sub directory.\n");
-    printf("        cd ..              |           Change location to father directory.\n");
+    printf("        cd [subdir]/..     |           Change location to a sub directory.\n");
     printf("        mk [file]          |           Create a new file.\n");
     printf("        mkdir [dir]        |           Create a new directory.\n");
     printf("        rm [file]          |           Remove an exist file.\n");
@@ -1122,7 +1120,7 @@ void help()
     printf("        password [old][new]|           Reverse own password.\n");
     printf("        authorize[user][pm]|           Set up new permission value for a user.\n");
     printf("        permission         |           Print own permission value. \n");
-    printf("        welcome            |           Go back to welcome page.\n");
+    printf("  applications | calc(calculator)    24 (24 Point Game)    box (Push Box Game)\n");
     printf("===============================================================================\n");
 
 }
