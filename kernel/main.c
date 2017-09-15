@@ -477,10 +477,18 @@ void shabby_shell(const char * tty_name)
                         clearArr(filepath, 128);
                     }
                     /* read a file */
-                    else if(strcmp(cmd, "vi") == 0)
+                    else if(strcmp(cmd, "read") == 0)
                     {
                         createFilepath(arg1);
                         readFile(filepath);
+                        clearArr(filepath, 128);
+                        //readFile(arg1);
+                    }
+                    /* notepad */
+                    else if(strcmp(cmd, "vi") == 0)
+                    {
+                        createFilepath(arg1);
+                        notepad(filepath);
                         clearArr(filepath, 128);
                         //readFile(arg1);
                     }
@@ -1475,7 +1483,7 @@ void reversePassword(char * lp, char * np)
     if (userFlag < 0) return;
     if (strcmp(lp, users[userFlag]) == 0)
     {
-        passwords[currentUser] = np;
+        strcpy(passwords[currentUser], np);
         printf("Success! %s!\n", users[currentUser]);
     } else {
         printf("Failed, password is wrong.\n");
@@ -1484,19 +1492,40 @@ void reversePassword(char * lp, char * np)
 
 void reversePermissions(char * username, char * per)
 {
-    if (permissions[currentUser] < 2)
-    {
-        printf("Only administrator can add new account.\n");
+    int i = 0;
+    int permission = per - '0';
+    if (per < 0 || per > 9) {
+        printf("Permission value should be a int(0-9).\n");
         return;
     }
-    for (i = 0; i < 10; i++)
+    userFlag = -1;
+    for (i = 0; i < usercount; i++)
     {
-        if (strcmp(users[i], username) == 0)
+        if (strcmp(username, users[i]) == 0)
         {
-            printf("Failed! User exists!\n");
+            userFlag = i;
+            if (userFlag == currentUser || permission > permissions[currentUser])
+            {
+                printf("You cannot raise your own permission.\n");
+                return;
+            }
+            if (permissions[currentUser] <= permission)
+            {
+                printf("You cannot reverse other's permission higher than or the same as yours.\n");
+                printf("Your permission: %d.\n", permissions[currentUser]);
+                return;
+            }
+            if (permissions[userFlag] == permission)
+            {
+                printf("Nothing changed.\n");
+                return;
+            }
+            permissions[i] = permission;
+            printf("%s's permission is %d now!\n", username, permission);
             return;
         }
     }
+    printf("No such user %s in this system.\n", username);
 }
 
 
@@ -1546,7 +1575,7 @@ void addUser(char * username, char * password, int flag, int permission)
 {
     if (permissions[currentUser] <= permission && flag == 0)
     {
-        printf("Sorry, you cannot offer a higher (or the same) permission to new user than yourself.\n");
+        printf("Sorry, you cannot offer a higher (or the same) permission to new user than yours.\n");
         printf("Your permission: %d\n.", permissions[currentUser]);
         return;
     }
@@ -1613,6 +1642,208 @@ void removeUser(char * username)
     }
     printf("No such user %s in this system.\n", username);
 }
+
+
+int notepad(char * filepath) {
+    int fd = 0;
+    int n;
+    char text[1024] = "";
+    char pr[20][128];
+    printf("try to read %s\n", filepath);
+    fd = open(filepath, O_RDWR);
+    if(fd == -1)
+    {
+        printf("Fail, please check and try again!!\n");
+        return 0;
+    }
+    n = read(fd, text, 1024);
+    text[n] = '\0';
+    close(fd);
+    printf("text: %s\n", text);
+    int i = 0, j = 0, k = 0;
+    while (i <= n)
+    {
+        if (text[i] <= 31 && j != 0)
+        {
+            pr[k][j] = '\0';
+            j = 0;
+            k++;
+        } else if (text[i] > 31){
+            pr[k][j] = text[i];
+            j++;
+        }
+        i++;
+    }
+    /* display */
+    printf("*********************** NOTEPAD ***********************\n");
+    int mn = 0;
+    if (k > 9)
+        mn = 9;
+    else
+        mn = k;
+    for (i = 0; i < k; i++)
+        printf("[ %d] %s\n", i, pr[i]);
+    if (k > 99999)
+        for (i = 10; i < k; i++)
+            printf("[%d] %s\n", i, pr[i]);
+
+    while (1) {
+        printf(">> ");
+        char rdbuf[75];
+        char copy[70];
+        int r = read(0, rdbuf, 75);
+        rdbuf[r] = 0;
+        char cmd[10] = "";
+        int loc = 0;
+        char arg[70] = "";
+        if (rdbuf[0]) {
+            i = 0, j = 0, loc = 0;
+            /* get command */
+            while (rdbuf[i] != ' ' && rdbuf[i] != 0)
+            {
+                cmd[i] = rdbuf[i];
+                i++;
+            }
+            i++;
+            /* get loc */
+            while(rdbuf[i] >= '0' && rdbuf[i] <= '9')
+            {
+                loc = loc * 10 + rdbuf[i] - '0';
+                i++;
+                j++;
+            }
+            if (loc < 0 || loc > k) {
+                printf("Wrong line number %d. It is unaccessable.\n", loc);
+                continue;
+            }
+            if (rdbuf[i] == ' ')
+                i++;
+            j = 0;
+            /* get arg */
+            while(rdbuf[i] != 0)
+            {
+                arg[j] = rdbuf[i];
+                i++;
+                j++;
+            }
+            // printf("%s/%d/%s\n",cmd, loc, arg);
+
+            /* edit */
+            if (strcmp(cmd, "edit") == 0) {
+                strcpy(pr[loc], arg);
+                printf("edit successfully!\n");
+            }
+            /* insert */
+            if (strcmp(cmd, "insert") == 0) {
+                for (i = k - 1; i >= loc; i--)
+                    strcpy(pr[i + 1], pr[i]);
+                strcpy(pr[loc], arg);
+                k++;
+                printf("insert successfully!\n");
+            }
+            /* append */
+            if (strcmp(cmd, "append") == 0) {
+                k++;
+                strcpy(pr[k - 1], arg);
+                printf("append successfully!\n");
+            }
+            /* delete */
+            if (strcmp(cmd, "delete") == 0) {
+                strcpy(pr[loc], "");
+                for (i = loc + 1; i < k; i++)
+                    strcpy(pr[i-1], pr[i]);
+                printf("delete successfully!\n");
+                k--;
+            }
+            /* clear */
+            if (strcmp(cmd, "clear") == 0) {
+                for (i = 0; i < k; i++) {
+                    strcpy(pr[i], "");
+                }
+                k = 0;
+                printf("clear successfully!\n");
+            }
+            /* clipboard */
+            if (strcmp(cmd, "clipboard") == 0) {
+                printf("[CLIOBOARD] %s\n", copy);
+                continue;
+            }
+            /* copy */
+            if (strcmp(cmd, "copy") == 0) {
+                strcpy(copy, pr[loc]);
+                printf("line %d is in the clipboard!\n", loc);
+                continue;
+            }
+            /* cut */
+            if (strcmp(cmd, "cut") == 0) {
+                strcpy(copy, pr[loc]);
+                strcpy(pr[loc], "");
+                for (i = loc + 1; i < k; i++)
+                    strcpy(pr[i-1], pr[i]);
+                printf("line %d is in the clipboard!\n", loc);
+                k--;
+            }
+            /* paste */
+            if (strcmp(cmd, "paste") == 0) {
+                for (i = k - 1; i >= loc; i--)
+                    strcpy(pr[i + 1], pr[i]);
+                strcpy(pr[loc], copy);
+                k++;
+                printf("paste successfully!\n");
+            }
+            /* save */
+            if (strcmp(cmd, "save") == 0) {
+                editCover(filepath, "");
+                for (i = 0; i < k; i++)
+                {
+                    editAppand(filepath, pr[i]);
+                    editAppand(filepath, "\n");
+                }
+                printf("save successfully!\n");
+                return 0;
+            }
+            /* exit */
+            if (strcmp(cmd, "exit") == 0) {
+                return 0;
+            }
+            /* help */
+            if (strcmp(cmd, "help") == 0) {
+                printf("======================================================\n");
+                printf("  insert [line] [text] | insert a line.\n");
+                printf("  edit [line] [text]   | reverse a line.\n");
+                printf("  append [text]        | append a line at the end.\n");
+                printf("  delete [line]        | delete a line.\n");
+                printf("  clear                | delete all texts.\n");
+                printf("  copy [line]          | copy a line into clipboard.\n");
+                printf("  cut [line]          | delete a line after copying.\n");
+                printf("  paste [line]         | insert a line from clipboard.\n");
+                printf("  clipboard            | print the clipboard.\n");
+                printf("  help                 | print a guidance of notepad.\n");
+                printf("-----------------------|------------------------------\n");
+                printf("  save                 | exit and save the texts.\n");
+                printf("  exit                 | just exit notepad.\n");
+                printf("======================================================\n");
+                continue;
+            }
+            /* display */
+            int mn = 0;
+            if (k > 9)
+                mn = 9;
+            else
+                mn = k;
+            for (i = 0; i < mn; i++)
+                printf("[ %d] %s\n", i, pr[i]);
+            if (k > 9)
+                for (i = 10; i < k; i++)
+                    printf("[%d] %s\n", i, pr[i]);
+        }
+    }
+    return 0;
+}
+
+
+
+
 
 /* Turn on Animation */
 void turnOn()
