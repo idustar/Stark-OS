@@ -2,7 +2,7 @@
 /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  main.c
  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- Xiao hong, 2016
+ Stark Du
  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 
 #include "type.h"
@@ -29,7 +29,7 @@ char location[128] = "";
 char filepath[128] = "";
 char users[10][128] = {"noname","noname","noname","noname","noname","noname","noname","noname","noname","noname"};
 char passwords[10][128] = {"no","no","no","no","no","no","no","no","no","no"};
-int permissions[10] = {2,1,1,1,1,1,1,1,1,1};
+int permissions[10] = {10,1,1,1,1,1,1,1,1,1};
 char files[60][128];
 char userfiles[60][128];
 int filequeue[200];
@@ -359,16 +359,11 @@ void shabby_shell(const char * tty_name)
     char buf[1024];
     int j = 0;
     turnOn();
-    clear();
-    //animation();
-    welcome();
-//    printf("press any key to start:\n");
-//    int r = read(0, rdbuf, 70);
     initFs();
+    clear();
+    welcome();
     login();
-
     while (1) {
-
         clearArr(rdbuf, 128);
         clearArr(cmd, 128);
         clearArr(arg1, 128);
@@ -435,14 +430,8 @@ void shabby_shell(const char * tty_name)
                         i++;
                         j++;
                     }
-                    /* play video */
-                    if(strcmp(cmd, "animation") == 0)
-                    {
-                        animation();
-                        welcome();
-                    }
                     /* welcome */
-                    else if(strcmp(cmd, "welcome") == 0)
+                    if(strcmp(cmd, "welcome") == 0)
                     {
                         welcome();
                     }
@@ -530,6 +519,21 @@ void shabby_shell(const char * tty_name)
                     {
                         logout();
                     }
+                    /* reverse password */
+                    else if(strcmp(cmd, "password") == 0)
+                    {
+                        reversePassword(arg1, arg2);
+                    }
+                    /* reverse permission */
+                    else if(strcmp(cmd, "authorize") == 0)
+                    {
+                        reversePermissions(arg1, arg2);
+                    }
+                    /* my permission */
+                    else if(strcmp(cmd, "permission") == 0)
+                    {
+                        myPermission();
+                    }
                     /* ls */
                     else if(strcmp(cmd, "ls") == 0)
                     {
@@ -563,7 +567,8 @@ void shabby_shell(const char * tty_name)
                     }
                 }
             }
-            else {
+            else
+            {
                 close(fd);
                 int pid = fork();
                 if (pid != 0) { /* parent */
@@ -580,7 +585,6 @@ void shabby_shell(const char * tty_name)
             checkPassword(argv[0]);
         }
     }
-
     close(1);
     close(0);
 }
@@ -669,7 +673,7 @@ char * getTrueName(char * name)
         tn[i] = name[j];
     }
     tn[i + 1] = '\0';
-    printf("gettruename:%s\n", tn);
+    // printf("gettruename:%s\n", tn);
     return tn;
 }
 
@@ -709,7 +713,7 @@ void updateFileLogs()
         strcpy(filename, files[count]);
         filename[len] = ' ';
         filename[len + 1] = '\0';
-        printf("%s\n", filename);
+        // printf("%s\n", filename);
         editAppand("fileLogs", filename);
         count++;
         i++;
@@ -760,7 +764,7 @@ void addLog(char * filepath)
         i++;
     }
     files[pos][i] = '\0';
-    printf("new file: '%s' has been added into filelogs.\n", files[pos]);
+    // printf("new file: '%s' has been added into filelogs.\n", files[pos]);
     updateFileLogs();
     filequeue[pos] = 0;
     char fname[128];
@@ -786,7 +790,7 @@ void addLog(char * filepath)
     //
     fpath[0] = '\0';
     if (k <= 0) {
-        printf("%s: name is %s and path is user1.\n", filepath, fname, fpath);
+        // printf("%s: name is %s and path is user1.\n", filepath, fname, fpath);
         editAppand("user1", fname);
         editAppand("user1", " ");
         return;
@@ -805,7 +809,7 @@ void addLog(char * filepath)
     fpath[k+1] = '\0';
 
 
-    printf("%s: name is %s and path is %s.\n", filepath, fname, fpath);
+    // printf("%s: name is %s and path is %s.\n", filepath, fname, fpath);
     if (strcmp("_", fpath) != 0) {
         editAppand(fpath, fname);
         editAppand(fpath, " ");
@@ -840,7 +844,7 @@ void deleteLog(char * filepath)
             files[i][len] = '0' + i/10;
             files[i][len + 1] = '0' + i%10;
             files[i][len + 2] = '\0';
-            printf("try to open file: %s\n", files[i]);
+            // printf("try to open file: %s\n", files[i]);
             fd = open(files[i], O_CREAT | O_RDWR);
             close(fd);
             filequeue[i] = 1;
@@ -848,7 +852,7 @@ void deleteLog(char * filepath)
         }
     }
     filecount--;
-    printf("start to update file logs.\n");
+    // printf("start to update file logs.\n");
     updateFileLogs();
 }
 
@@ -885,26 +889,23 @@ void initFs()
 
     for (i = 0; i < 500; i++)
         filequeue[i] = 1;
-    printf("Start initfs\n");
+    //printf("Start initfs\n");
     fd = open("myUsers", O_CREAT | O_RDWR);
     close(fd);
-    printf("Init usernames.\n");
+    //printf("Init usernames.\n");
     fd = open("myUsersPassword", O_CREAT | O_RDWR);
     close(fd);
-    printf("Init passwords.\n");
+    //printf("Init passwords.\n");
     fd = open("myUsersPermissions", O_CREAT | O_RDWR);
     close(fd);
-    printf("Init permissions.\n");
+    //printf("Init permissions.\n");
     fd = open("fileLogs", O_CREAT | O_RDWR);
     close(fd);
-    printf("Init filelogs.\n");
+    //printf("Init filelogs.\n");
     fd = open("user1", O_CREAT | O_RDWR);
     close(fd);
-    printf("Init user1.\n");
-//    fd = open("user1", O_CREAT | O_RDWR);
-//    close(fd);
-//    fd = open("user2", O_CREAT | O_RDWR);
-//    close(fd);
+    //printf("Init user1.\n");
+
     /* init users */
     fd = open("myUsers", O_RDWR);
     n = read(fd, bufr, 1024);
@@ -943,7 +944,7 @@ void initFs()
         }
     }
     close(fd);
-    printf("Init usernames.\n");
+    //printf("Init usernames.\n");
     count = 0;
     k = 0;
 
@@ -977,7 +978,7 @@ void initFs()
         }
     }
     close(fd);
-    printf("Init passwords.\n");
+    //printf("Init passwords.\n");
     count = 0;
     k = 0;
 
@@ -986,14 +987,14 @@ void initFs()
     n = read(fd, bufp, 1024);
     for (i = 0; i < strlen(bufp); i++)
     {
-        if (bufp[i] != ' ')
+        if (bufp[i] >= '0' && bufp[i] <= '9')
         {
-            permissions[k] = bufp[i] - '1' + 1;
+            permissions[k] = bufp[i] - '0';
             k++;
         }
     }
     close(fd);
-    printf("Init permissions.\n");
+    //printf("Init permissions.\n");
     count = 0;
     k = 0;
 
@@ -1041,11 +1042,11 @@ void initFs()
         flag[5] = '0' + i/10;
         flag[6] = '0' + i%10;
         flag[7] = '\0';
-        printf("Init files: %s    ", files[i]);
+        // printf("Init files: %s    ", files[i]);
         if (files[i][0] != '\1') {
             fd = open(files[i], O_CREAT | O_RDWR);
             close(fd);
-            printf("success.\n");
+            // printf("success.\n");
         }
 
         if (strcmp(files[i], flag) != 0)
@@ -1055,7 +1056,7 @@ void initFs()
     }
     filecount = count - empty;
 
-    printf("Finish Initing files.\n");
+    // printf("Finish Initing files.\n");
 }
 
 
@@ -1086,43 +1087,43 @@ PUBLIC void clear()
 /* Show Process */
 void showProcess()
 {	int i = 0;
-    printf("********************************************************************************\n");
+    printf("================================================================================\n");
     printf("        name        |        priority        |        f_flags(0 is runable)        \n");
     printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
     for (i = 0; i < NR_TASKS + NR_PROCS; i++)
     {
         printf("        %s                   %d                      %d\n", proc_table[i].name, proc_table[i].priority, proc_table[i].p_flags);
     }
-    printf("********************************************************************************\n");
+    printf("================================================================================\n");
 }
 
 /* Show Help Message */
 void help()
 {
-    printf("********************************************************************************\n");
-    printf("        name               |                      function                      \n");
+    printf("================================================================================\n");
+    printf("        command            |                      function                      \n");
     printf("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
-    printf("        welcome            |           Welcome the users\n");
-    printf("        clear              |           Clean the screen\n");
-    printf("        animation          |           Play the video\n");
-    printf("        ls                 |           List all files in current file path\n");
-    printf("        help               |           List all commands\n");
-    printf("        proc               |           List all process's message\n");
-    printf("        saolei             |           Start game saolei\n");
-    printf("        2048               |           Start game 2048\n");
-    printf("        caculator          |           Start a simply caculator\n");
-    printf("        duihua [str]       |           Chat with Os\n");
-    printf("        print  [str]       |           Print a string\n");
-    printf("        newfile[file][str] |           Create a file\n");
-    printf("        read   [file]      |           Read a file\n");
-    printf("        delete [file]      |           Delete a file\n");
-    printf("        edit   [file][str] |           Edit file, cover the content\n");
-    printf("        edit+  [file][str] |           Edit file, appand after the content\n");
-    printf("        add    [user][pass]|           Create a new user\n");
-    printf("        move   [user][pass]|           Remove a user and delete his files\n");
-    printf("        login  [user][pass]|           Login \n");
-    printf("        loginout           |           Loginout\n");
-    printf("********************************************************************************\n");
+    printf("        clear              |           Clear the screen.\n");
+    printf("        proc               |           List all process.\n");
+    printf("        help               |           Guidance of the system.\n");
+    printf("        cd [subdir]        |           Change location to a sub directory.\n");
+    printf("        cd ..              |           Change location to father directory.\n");
+    printf("        mk [file]          |           Create a new file.\n");
+    printf("        mkdir [dir]        |           Create a new directory.\n");
+    printf("        rm [file]          |           Remove an exist file.\n");
+    printf("        rmdir [dir]        |           Remove an exist directory.\n");
+    printf("        read [file]        |           Simplely read texts from a file\n");
+    printf("        ls [dir]           |           List all files and subdirs in this dir.\n");
+    printf("        edit [file] [text] |           Simplely write texts into a file\n");
+    printf("        vi [file]          |           Use notepad to visit a file.(R/W)\n");
+    printf("        logout             |           Log out.\n");
+    printf("        adduser            |           Create a new user account.\n");
+    printf("        rmuser             |           Delete an exist user account.\n");
+    printf("        password [old][new]|           Reverse own password.\n");
+    printf("        authorize[user][pm]|           Set up new permission value for a user.\n");
+    printf("        permission         |           Print own permission value. \n");
+    printf("        welcome            |           Go back to welcome page.\n");
+    printf("===============================================================================\n");
 
 }
 
@@ -1144,27 +1145,28 @@ void createFile(char * filepath, char * buf, int flag)
     {
         unlink(files[pos]);
     }
-    printf("try to open %s\n", filepath);
+    // printf("try to open %s\n", filepath);
     fd = open(filepath, O_CREAT | O_RDWR);
-    printf("file name: %s content: %s\n", filepath, buf);
+    // printf("file name: %s content: %s\n", filepath, buf);
     if(fd == -1)
     {
-        printf("Creating Failed, please check and try again!!\n");
+        printf("Failed, we meet some problems.\n");
         return;
     }
     if(fd == -2)
     {
-        printf("Failed, file exsists!!\n");
+        printf("Failed, file or directory exists!!\n");
         return;
     }
-    printf("%s\n", buf);
+    // printf("%s\n", buf);
 
     write(fd, buf, strlen(buf));
     close(fd);
-    printf("now add log.\n");
+    // printf("now add log.\n");
     /* add log */
     if (flag == 1)
         addLog(filepath);
+    printf("\n");
 
 }
 
@@ -1202,16 +1204,16 @@ void readFile(char * filepath)
     int fd = -1;
     int n;
     char bufr[1024] = "";
-    printf("try to read %s\n", filepath);
+    //printf("try to read %s\n", filepath);
     fd = open(filepath, O_RDWR);
     if(fd == -1)
     {
-        printf("Fail, please check and try again!!\n");
+        printf("Failed, we meet some problems!!\n");
         return;
     }
     n = read(fd, bufr, 1024);
     bufr[n] = '\0';
-    printf("%s(fd=%d) : %s\n", filepath, fd, bufr);
+    printf(">> %s\n%s\n", filepath, bufr);
     close(fd);
 }
 
@@ -1231,7 +1233,7 @@ void editAppand(char * filepath, char * buf)
     fd = open(filepath, O_RDWR);
     if(fd == -1)
     {
-        printf("Fail, please check and try again!!\n");
+        printf("Failed, something unluckily happened!!\n");
         return;
     }
 
@@ -1279,14 +1281,14 @@ void deleteFile(char * filepath)
 {
     if (vertify() == 0)
         return;
-    printf("try to delete '%s'.\n", filepath);
+    printf("Try to delete %s...", filepath);
     editCover(filepath, "");
     if(unlink(filepath) != 0)
     {
-        printf("Edit fail, please try again!\n");
+        printf("File system meets some problems!!\n");
         return;
     }
-    printf("start to delete %s's log.\n", filepath);
+    // printf("start to delete %s's log.\n", filepath);
     deleteLog(filepath);
 
 //    char username[128];
@@ -1298,7 +1300,7 @@ void deleteFile(char * filepath)
 //    {
 //        strcpy(username, "user2");
 //    }
-    printf("there's lots of things to do. \n\n\n");
+    // printf("there's lots of things to do. \n\n\n");
     char path[128];
     strcpy(path, getFilePath(filepath));
 
@@ -1306,13 +1308,13 @@ void deleteFile(char * filepath)
     char filename[128];
     char realname[128];
     int fd = -1, n = 0, i = 0, count = 0, k = 0, j = 0;
-    printf("path is %s\n", path);
+    // printf("path is %s\n", path);
     if (strcmp(path, "_") == 0)
         strcpy(path, "user1");
     fd = open(path, O_RDWR);
     n = read(fd, bufr, 1024);
     close(fd);
-    printf("success.\n");
+    // printf("success.\n");
 
 
     i = 0;
@@ -1321,6 +1323,7 @@ void deleteFile(char * filepath)
         strcpy(path, "");
     }
     int len = strlen(path);
+    int flag = 0;
     for (i = 0; i < 60; i++)
     {
         if (strlen(files[i]) < 1 || files[i][0] < 31 || files[i][0] > 172)
@@ -1341,24 +1344,27 @@ void deleteFile(char * filepath)
         if (len == 0) j = 10;
         if (j == len + 10)
         {
-            printf("find files: %s      ", files[i]);
+           // printf("find files: %s      ", files[i]);
             if (strcmp(path, files[i]) == 0)
             {
-                printf("deleted!\n");
+                //printf("deleted!\n");
                 strcpy(files[i], "");
             }
             else
             {
+                flag = 0;
                 for (j = len, k = 0; files[i][j] != '\0'; j++, k++) {
                     file[k] = files[i][j];
                     if (file[k]=='_' && files[i][j+1]>31) {
                         clearArr(file, 128);
-                        return;
+                        flag = 1;
+                        break;
                     }
                 }
+                if (flag) continue;
                 if (file[0] == 'e' && file[1] == 'm' && file[2] == 'p') {
                     clearArr(file, 128);
-                    return;
+                    continue;
                 }
                 file[k] = ' ';
                 file[k+1] = '\0';
@@ -1366,20 +1372,20 @@ void deleteFile(char * filepath)
                     editAppand("user1", file);
                 else
                     editAppand(path, file);
-                printf("got %s\n", file);
+               // printf("got %s\n", file);
                 clearArr(file, 128);
             }
         }
 
     }
-    printf("rebuild file system successfully!\n");
+    printf("          success!\n");
 }
 
 void cd(char *path) {
     char aim[128];
     if (strcmp("..", path) == 0) {
         if (strcmp("", location) == 0) {
-            printf("Deny, this is a root directory.\n");
+            printf("Deny!!! this is a root directory.\n");
             return;
         }
         strcpy(aim, getFilePath(path));
@@ -1396,19 +1402,19 @@ void cd(char *path) {
     int fd = -1;
     int n;
     char bufr[1024] = "";
-    printf("try to enter %s\n", aim);
+    // printf("try to enter %s\n", aim);
     if (strcmp(aim, "_") != 0)
         fd = open(aim, O_RDWR);
     else
         fd = open("user1", O_RDWR);
     if(fd == -1)
     {
-        printf("Fail, please check and try again!!\n");
+        printf("Ummm... something unluckily happened!!\n");
         return;
     }
     n = read(fd, bufr, 1024);
     bufr[n] = '\0';
-    printf("%s : %s\n", aim, bufr);
+    // printf("%s : %s\n", aim, bufr);
     close(fd);
     aim[strlen(aim)-1] = '\0';
     strcpy(location, aim);
@@ -1435,16 +1441,17 @@ void checkUsername(char * username)
     int i = 0;
     if (strcmp(username, "listall") == 0)
     {
-        for (i = 0; i < usercount; i++)
+        for (i = 0; i < 10; i++)
         {
-            printf("User %d: %s %s\n", i, users[i], passwords[i]);
-            login();
-            return;
+            if (strcmp(users[i], "noname") != 0)
+                printf("User %d: %s %s\n", i, users[i], passwords[i]);
         }
+        login();
+        return;
     }
     if (strcmp(username, "newadmin") == 0)
     {
-        addUser("admin", "admin", 1, 2);
+        addUser("admin", "admin", 1, 9);
         login();
         return;
     }
@@ -1466,10 +1473,10 @@ void checkUsername(char * username)
 void checkPassword(char * password)
 {
     if (userFlag < 0) return;
-    if (strcmp(password, users[userFlag]) == 0)
+    if (strcmp(password, passwords[userFlag]) == 0)
     {
         currentUser = userFlag;
-        printf("Welcome! %s!\n", passwords[currentUser]);
+        printf("Welcome! %s!\n", users[currentUser]);
         currentState = 0;
     } else {
         printf("Sorry, password is wrong.\n");
@@ -1478,13 +1485,18 @@ void checkPassword(char * password)
     userFlag = -1;
 }
 
+void myPermission()
+{
+    printf("Your permission is %d.\n", permissions[currentUser]);
+}
+
 void reversePassword(char * lp, char * np)
 {
-    if (userFlag < 0) return;
-    if (strcmp(lp, users[userFlag]) == 0)
+    if (strcmp(lp, passwords[currentUser]) == 0)
     {
         strcpy(passwords[currentUser], np);
         printf("Success! %s!\n", users[currentUser]);
+        updateMyUsersPassword();
     } else {
         printf("Failed, password is wrong.\n");
     }
@@ -1493,9 +1505,9 @@ void reversePassword(char * lp, char * np)
 void reversePermissions(char * username, char * per)
 {
     int i = 0;
-    int permission = per - '0';
-    if (per < 0 || per > 9) {
-        printf("Permission value should be a int(0-9).\n");
+    int permission = per[0] - '0';
+    if (permission < 0 || permission > 9) {
+        printf("Permission value %s should be a int(0-9).\n", per);
         return;
     }
     userFlag = -1;
@@ -1521,6 +1533,7 @@ void reversePermissions(char * username, char * per)
                 return;
             }
             permissions[i] = permission;
+            updateMyUsersPermissions();
             printf("%s's permission is %d now!\n", username, permission);
             return;
         }
@@ -1554,7 +1567,7 @@ void ls()
     strcpy(path, location);
     path[len] = '_';
     path[len + 1] = '\0';
-    printf("list %s:", path);
+    // printf("list %s:", path);
     if (strcmp(path, "_") != 0)
         fd = open(path, O_RDWR);
     else
@@ -1565,7 +1578,7 @@ void ls()
         return;
     }
     n = read(fd, bufr, 1024);
-    printf("%s\n", bufr);
+    printf(">> %s\n", bufr);
     close(fd);
 }
 
@@ -1636,6 +1649,9 @@ void removeUser(char * username)
             strcpy(users[i], "noname");
             strcpy(passwords[i], "no");
             permissions[i] = 1;
+            updateMyUsers();
+            updateMyUsersPassword();
+            updateMyUsersPermissions();
             printf("%s is deleted successfully!\n", username);
             return;
         }
@@ -1649,17 +1665,17 @@ int notepad(char * filepath) {
     int n;
     char text[1024] = "";
     char pr[20][128];
-    printf("try to read %s\n", filepath);
+    // printf("try to read %s\n", filepath);
     fd = open(filepath, O_RDWR);
     if(fd == -1)
     {
-        printf("Fail, please check and try again!!\n");
+        printf("OOOOOOps, we meet some problems!!\n");
         return 0;
     }
     n = read(fd, text, 1024);
     text[n] = '\0';
     close(fd);
-    printf("text: %s\n", text);
+    // printf("text: %s\n", text);
     int i = 0, j = 0, k = 0;
     while (i <= n)
     {
@@ -1676,6 +1692,8 @@ int notepad(char * filepath) {
     }
     /* display */
     printf("*********************** NOTEPAD ***********************\n");
+    printf("      %s                       help: guidance\n",filepath);
+    printf("=======================================================\n");
     int mn = 0;
     if (k > 9)
         mn = 9;
